@@ -22,7 +22,7 @@ def get_response(prompt):
         model = "gpt-3.5-turbo",
         messages = [
             {"role": "system", "content": "You are an elderly caretaker"}, 
-            {"role": "user", "content": "Treat me as an elderly and give me short and simple responses"},
+            {"role": "system", "content": "Treat me as an elderly and give me short and simple responses"},
             {"role": "user", "content": "{}".format(prompt)}
         ],
         max_tokens = 50
@@ -31,6 +31,24 @@ def get_response(prompt):
     output = completion["choices"][0]["message"]["content"]
     print(output)
     return output
+
+
+def check_wellbeing():
+    """
+    Function to prompt ChatGPT to ask elderly question to check in on their well-being
+    """
+    completion = openai.ChatCompletion.create(
+        model = "gpt-3.5-turbo",
+        messages = [
+            {"role": "system", "content": "You are an elderly caretaker"}, 
+            {"role": "system", "content": "Treat me as an elderly and give me short and simple responses"},
+            {"role": "user", "content": "Ask me the question: Are you okay?"}
+        ],
+        max_tokens = 50
+    )
+
+    output = completion["choices"][0]["message"]["content"]
+    speak(output)
 
 
 def speak(text):
@@ -69,10 +87,10 @@ def main():
                 print("Response complete")
 
             except sr.RequestError as e:
-                print("Could not request results; {0}".format(e))
+                print("Could not request results: {}".format(e))
             
             except sr.UnknownValueError:
-                print("unknown error occurred")
+                print("No speech detected.")
 
 
 if __name__ == "__main__":
