@@ -1,6 +1,7 @@
 import openai
-import key
 import pyttsx3
+import os
+from dotenv import load_dotenv
 # import speech_recognition as sr
 
 
@@ -8,32 +9,60 @@ import pyttsx3
 # r = sr.Recognizer()
 
 # Set api_key for ChatGPT
-openai.api_key = key.API_KEY
+load_dotenv()
+openai.api_key = os.environ['API_KEY']
+
+# Token restriction on ChatGPT response
+MAX_TOKEN = 100
 
 # Initialise text-to-speech engine
 ENGINE = pyttsx3.init()
 
+def init_chat(conversation):
+    """
+    Initialise ChatGPT by setting the system content. Updates and returns the conversation list
+    """
+    # Initial instructions to set chatgpt characteristics
+    conversation.append(
+        {"role": "system", "content": "You are a friendly elderly caretaker."}
+    )
+    conversation.append(
+        {"role": "user", "content": "I am an elderly. All your responses to me should be short and simple."}
+    )
 
-def get_response(prompt):
-    """
-    Connect to ChatGPT to generate a string as a response to given prompt
-    """
     completion = openai.ChatCompletion.create(
         model = "gpt-3.5-turbo",
-        messages = [
-            {"role": "system", "content": "You are an elderly caretaker"}, 
-            {"role": "system", "content": "Treat me as an elderly and give me short and simple responses"},
-            {"role": "user", "content": "{}".format(prompt)}
-        ],
-        max_tokens = 50
+        messages = conversation,
+        max_tokens = MAX_TOKEN
     )
 
     output = completion["choices"][0]["message"]["content"]
     print(output)
+
+
+def get_response(prompt, conversation):
+    """
+    Connect to ChatGPT to generate a string as a response to given prompt together with context from conversation history
+    """
+    # Add prompt to conversation as user message
+    conversation.append({"role": "user", "content": prompt})
+
+    completion = openai.ChatCompletion.create(
+        model = "gpt-3.5-turbo",
+        messages = conversation,
+        max_tokens = MAX_TOKEN
+    )
+
+    output = completion["choices"][0]["message"]["content"]
+    print(output)
+
+    # Log user message into conversation history 
+    conversation.append({"role": "assistant", "content": output})
+
     return output
 
 
-def check_wellbeing():
+# def check_wellbeing():
     """
     Function to prompt ChatGPT to ask elderly question to check in on their well-being
     """
@@ -60,12 +89,18 @@ def speak(text):
 
 
 def main():
+    # Log of conversation history
+    conversation = []
+
+    # Configure characteristics of ChatGPT
+    init_chat(conversation)
+
     # Manual typing of prompt without the use of microphone
     while(1):
         prompt = input("Prompt: ")
         prompt = prompt.lower()
 
-        response = get_response(prompt)
+        response = get_response(prompt, conversation)
         speak(response)
 
         print('Response complete')
