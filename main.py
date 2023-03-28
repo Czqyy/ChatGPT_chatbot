@@ -2,108 +2,155 @@ import openai
 import pyttsx3
 import os
 from dotenv import load_dotenv
-# import speech_recognition as sr
+import speech_recognition as sr
 
-
-# Obtain audio from microphone
-# r = sr.Recognizer()
 
 # Set api_key for ChatGPT
 load_dotenv()
 openai.api_key = os.environ['API_KEY']
 
-# Token restriction on ChatGPT response
-MAX_TOKEN = 100
 
-# Initialise text-to-speech engine
-ENGINE = pyttsx3.init()
+class Chat(object):
+    def __init__(self, max_token=100, voice_recognition=False) -> None:
+        """
+        Initialise ChatGPT by setting the system content. 
+        """
+        self.max_token = max_token
+        self.voice_recognition = voice_recognition
 
-def init_chat(conversation):
-    """
-    Initialise ChatGPT by setting the system content. Updates and returns the conversation list
-    """
-    # Initial instructions to set chatgpt characteristics
-    conversation.append(
-        {"role": "system", "content": "You are a friendly elderly caretaker."}
-    )
-    conversation.append(
-        {"role": "user", "content": "I am an elderly. All your responses to me should be short and simple."}
-    )
+        # Initialise text-to-speech engine
+        self.ENGINE = pyttsx3.init()
 
-    completion = openai.ChatCompletion.create(
-        model = "gpt-3.5-turbo",
-        messages = conversation,
-        max_tokens = MAX_TOKEN
-    )
+        # Initialise voice recognition if set to True
+        if voice_recognition:  
+            # Obtain audio from microphone
+            self.recogniser = sr.Recognizer()
+            
+            with sr.Microphone() as self.source:   
+                # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
+                # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
+                self.recogniser.adjust_for_ambient_noise(self.source, duration=0.5)
 
-    output = completion["choices"][0]["message"]["content"]
-    print(output)
-
-
-def get_response(prompt, conversation):
-    """
-    Connect to ChatGPT to generate a string as a response to given prompt together with context from conversation history
-    """
-    # Add prompt to conversation as user message
-    conversation.append({"role": "user", "content": prompt})
-
-    completion = openai.ChatCompletion.create(
-        model = "gpt-3.5-turbo",
-        messages = conversation,
-        max_tokens = MAX_TOKEN
-    )
-
-    output = completion["choices"][0]["message"]["content"]
-    print(output)
-
-    # Log user message into conversation history 
-    conversation.append({"role": "assistant", "content": output})
-
-    return output
+                # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
+                # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
+                self.recogniser.pause_threshold = 0.5
 
 
-# def check_wellbeing():
-    """
-    Function to prompt ChatGPT to ask elderly question to check in on their well-being
-    """
-    completion = openai.ChatCompletion.create(
-        model = "gpt-3.5-turbo",
-        messages = [
-            {"role": "system", "content": "You are an elderly caretaker"}, 
-            {"role": "system", "content": "Treat me as an elderly and give me short and simple responses"},
-            {"role": "user", "content": "Ask me the question: Are you okay?"}
-        ],
-        max_tokens = 50
-    )
+        # List keeping track of conversation history
+        self.conversation = []
+    
+        # Add initial instructions to conversation to configure ChatGPT characteristics
+        self.conversation.append(
+            {"role": "user", "content": "You are a friendly elderly caretaker."}
+        )
+        self.conversation.append(
+            {"role": "user", "content": "I am an elderly. All your responses to me should be short and simple."}
+        )
 
-    output = completion["choices"][0]["message"]["content"]
-    speak(output)
+        completion = openai.ChatCompletion.create(
+            model = "gpt-3.5-turbo",
+            messages = self.conversation,
+            max_tokens = self.max_token
+        )
+
+        output = completion["choices"][0]["message"]["content"]
+
+        print(f"Initial response: {output}")
+        print("ChatGPT initialised.")
 
 
-def speak(text):
-    """
-    Takes a string as input and uses the text-to-speech engine to speak the text
-    """
-    ENGINE.say(text)
-    ENGINE.runAndWait()
+    def get_prompt(self):
+        """
+        Gets user prompt either through voice recognition or manual cli input. Returns the prompt as a string
+        """
+        if self.voice_recognition:
+            try:
+                # Listens for the user's input
+                audio = self.recogniser.listen(self.source)
+                
+                # Use Google Speech Recognition to recognize audio
+                prompt = self.recogniser.recognize_google(audio)
+                prompt = prompt.lower()
+                print(f"Speech input: {prompt}")
+                return prompt
+
+            except sr.RequestError as e:
+                print("Could not request results: {}".format(e))
+            
+            except sr.UnknownValueError:
+                print("No speech detected.")
+
+        else:
+            prompt = input("Prompt: ")
+            prompt = prompt.lower()
+            return prompt
+
+
+    def get_response(self, prompt):
+        """
+        Connect to ChatGPT to generate a string as a response to given prompt together with context from conversation history
+        """
+        # Add prompt to conversation as user message
+        self.conversation.append({"role": "user", "content": prompt})
+
+        completion = openai.ChatCompletion.create(
+            model = "gpt-3.5-turbo",
+            messages = self.conversation,
+            max_tokens = self.max_token
+        )
+
+        output = completion["choices"][0]["message"]["content"]
+        print(f"Response: {output}")
+
+        tokens = completion["usage"]["total_tokens"]
+        print(f"Tokens used: {tokens}")
+
+        # Remove some conversation history to avoid exceeding maximum token limit of model 
+        if tokens > 3000:
+            self.clear_conversation(self.conversation)
+
+        # Log user message into conversation history 
+        self.conversation.append({"role": "assistant", "content": output})
+
+        return output
+
+
+    def clear_conversation(self, prompts=10):
+        """
+        Function to clear conversation history with ChatGPT. Clears 'prompts' number of user messages 
+        Default number set to 10 user-assistant content pairs.
+        """
+        # Account for user-assistant content pair
+        end_index = (2 * prompts) + 2
+        for i in range(2, end_index):
+            del self.conversation[i]
+
+
+    def check_wellbeing(self):
+        """
+        Function to prompt ChatGPT to ask elderly question to check in on their well-being
+        """
+        output = self.get_response("Ask me the question: Are you okay?")
+        self.speak(output)
+
+
+    def speak(self, text):
+        """
+        Takes a string as input and uses the text-to-speech engine to speak the text
+        """
+        self.ENGINE.say(text)
+        self.ENGINE.runAndWait()
+
 
 
 def main():
-    # Log of conversation history
-    conversation = []
+    chat = Chat(voice_recognition=True)
 
-    # Configure characteristics of ChatGPT
-    init_chat(conversation)
-
-    # Manual typing of prompt without the use of microphone
     while(1):
-        prompt = input("Prompt: ")
-        prompt = prompt.lower()
+        prompt = chat.get_prompt()
+        response = chat.get_response(prompt)
+        chat.speak(response)
 
-        response = get_response(prompt, conversation)
-        speak(response)
-
-        print('Response complete')
 
     # Uncomment when microphone is available
     # with sr.Microphone() as source:   
