@@ -11,29 +11,28 @@ openai.api_key = os.environ['API_KEY']
 
 
 class Chat(object):
-    def __init__(self, max_token=100, voice_recognition=False) -> None:
+    def __init__(self, max_token=100, source=False) -> None:
         """
         Initialise ChatGPT by setting the system content. 
         """
         self.max_token = max_token
-        self.voice_recognition = voice_recognition
+        self.source = source
 
         # Initialise text-to-speech engine
         self.ENGINE = pyttsx3.init()
 
-        # Initialise voice recognition if set to True
-        if voice_recognition:  
-            # Obtain audio from microphone
+        # Initialise and configure voice recognition if set to True
+        if self.source:  
+            # Obtain voice recogniser from microphone
             self.recogniser = sr.Recognizer()
             
-            with sr.Microphone() as self.source:   
-                # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
-                # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
-                self.recogniser.adjust_for_ambient_noise(self.source, duration=0.5)
+            # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
+            # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
+            self.recogniser.adjust_for_ambient_noise(self.source, duration=0.5)
 
-                # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
-                # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
-                self.recogniser.pause_threshold = 0.5
+            # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
+            # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
+            self.recogniser.pause_threshold = 0.5
 
 
         # List keeping track of conversation history
@@ -63,9 +62,10 @@ class Chat(object):
         """
         Gets user prompt either through voice recognition or manual cli input. Returns the prompt as a string
         """
-        if self.voice_recognition:
+        if self.source:
             try:
                 # Listens for the user's input
+                print("Listening...")
                 audio = self.recogniser.listen(self.source)
                 
                 # Use Google Speech Recognition to recognize audio
@@ -75,10 +75,11 @@ class Chat(object):
                 return prompt
 
             except sr.RequestError as e:
-                print("Could not request results: {}".format(e))
+                print(f"Could not request results: {e}")
             
             except sr.UnknownValueError:
                 print("No speech detected.")
+                return 
 
         else:
             prompt = input("Prompt: ")
@@ -90,6 +91,10 @@ class Chat(object):
         """
         Connect to ChatGPT to generate a string as a response to given prompt together with context from conversation history
         """
+        if prompt is None:
+            print("No prompt given.")
+            return
+
         # Add prompt to conversation as user message
         self.conversation.append({"role": "user", "content": prompt})
 
@@ -103,7 +108,7 @@ class Chat(object):
         print(f"Response: {output}")
 
         tokens = completion["usage"]["total_tokens"]
-        print(f"Tokens used: {tokens}")
+        print(f"Total tokens used: {tokens}")
 
         # Remove some conversation history to avoid exceeding maximum token limit of model 
         if tokens > 3000:
@@ -138,18 +143,33 @@ class Chat(object):
         """
         Takes a string as input and uses the text-to-speech engine to speak the text
         """
+        if text is None:
+            return
+        
         self.ENGINE.say(text)
         self.ENGINE.runAndWait()
 
 
 
 def main():
-    chat = Chat(voice_recognition=True)
+    # Using manual command line input
+    chat = Chat()
 
     while(1):
         prompt = chat.get_prompt()
         response = chat.get_response(prompt)
         chat.speak(response)
+
+    
+    # Using voice recognition
+    # with sr.Microphone() as source:
+    #     chat = Chat(source=source)
+
+    #     while(1):
+    #         prompt = chat.get_prompt()
+    #         response = chat.get_response(prompt)
+    #         chat.speak(response)
+
 
 
     # Uncomment when microphone is available
