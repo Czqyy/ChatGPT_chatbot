@@ -1,6 +1,7 @@
 import openai
 import pyttsx3
 import os
+import sys
 from dotenv import load_dotenv
 import speech_recognition as sr
 
@@ -10,40 +11,26 @@ load_dotenv()
 openai.api_key = os.environ['API_KEY']
 
 
-class Chat(object):
-    def __init__(self, max_token=100, source=False) -> None:
+class TextChat(object):
+    def __init__(self, max_token=100) -> None:
         """
-        Initialise ChatGPT by setting the system content. 
+        Initialise text-prompted ChatGPT by setting the system content. 
         """
         self.max_token = max_token
-        self.source = source
+        # self.source = source
 
         # Initialise text-to-speech engine
         self.ENGINE = pyttsx3.init()
-
-        # Initialise and configure voice recognition if set to True
-        if self.source:  
-            # Obtain voice recogniser from microphone
-            self.recogniser = sr.Recognizer()
-            
-            # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
-            # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
-            self.recogniser.adjust_for_ambient_noise(self.source, duration=0.5)
-
-            # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
-            # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
-            self.recogniser.pause_threshold = 0.5
-
 
         # List keeping track of conversation history
         self.conversation = []
     
         # Add initial instructions to conversation to configure ChatGPT characteristics
         self.conversation.append(
-            {"role": "user", "content": "You are a friendly elderly caretaker."}
+            {"role": "system", "content": "You are a friendly elderly caretaker."}
         )
         self.conversation.append(
-            {"role": "user", "content": "I am an elderly. All your responses to me should be short and simple."}
+            {"role": "user", "content": "I am an elderly. All your responses to me as my caretaker should be short and simple."}
         )
 
         completion = openai.ChatCompletion.create(
@@ -60,31 +47,10 @@ class Chat(object):
 
     def get_prompt(self):
         """
-        Gets user prompt either through voice recognition or manual cli input. Returns the prompt as a string
+        Gets user prompt through manual command line input. Returns the prompt as a string
         """
-        if self.source:
-            try:
-                # Listens for the user's input
-                print("Listening...")
-                audio = self.recogniser.listen(self.source)
-                
-                # Use Google Speech Recognition to recognize audio
-                prompt = self.recogniser.recognize_google(audio)
-                prompt = prompt.lower()
-                print(f"Speech input: {prompt}")
-                return prompt
-
-            except sr.RequestError as e:
-                print(f"Could not request results: {e}")
-            
-            except sr.UnknownValueError:
-                print("No speech detected.")
-                return 
-
-        else:
-            prompt = input("Prompt: ")
-            prompt = prompt.lower()
-            return prompt
+        prompt = input("Prompt: ")
+        return prompt.lower()
 
 
     def get_response(self, prompt):
@@ -150,60 +116,81 @@ class Chat(object):
         self.ENGINE.runAndWait()
 
 
+class VoiceChat(TextChat):
+    def __init__(self, source, max_token=100) -> None:
+        """
+        Initialise voice-prompted ChatGPT. Source must be a sr.Microphone() object 
+        """
+        assert isinstance(source, sr.Microphone), "Audio input must be of class sr.Microphone."
+
+        self.source = source
+
+        #  Obtain voice recogniser from microphone
+        self.recogniser = sr.Recognizer()
+
+        # Below are the configurations for the voice recogniser
+        
+        # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
+        # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
+        self.recogniser.adjust_for_ambient_noise(self.source, duration=0.5)
+
+        # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
+        # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
+        self.recogniser.pause_threshold = 0.5
+
+        super().__init__(max_token)
+
+    def get_prompt(self):
+        """
+        Gets user prompt through voice recognition. Returns the prompt as a string
+        """
+        try:
+            # Listens for the user's input
+            print("Listening...")
+            audio = self.recogniser.listen(self.source)
+            
+            # Use Google Speech Recognition to recognize audio
+            prompt = self.recogniser.recognize_google(audio)
+            prompt = prompt.lower()
+            print(f"Speech input: {prompt}")
+            return prompt
+
+        except sr.RequestError as e:
+            print(f"Could not request results: {e}")
+        
+        except sr.UnknownValueError:
+            print("No speech detected.")
+            return 
+
 
 def main():
-    # Using manual command line input
-    chat = Chat()
+    if len(sys.argv) != 2:
+        print("Expected 1 command line argument. Run 'python3 main.py 0' for TextChat, 'python3 main.py 1' for VoiceChat.")
+        return
+        
+        
+    if sys.argv[1] == "0":
+        # Using manual command line input
+        chat = TextChat()
 
-    while(1):
-        prompt = chat.get_prompt()
-        response = chat.get_response(prompt)
-        chat.speak(response)
+        while(1):
+            prompt = chat.get_prompt()
+            response = chat.get_response(prompt)
+            chat.speak(response)
 
-    
-    # Using voice recognition
-    # with sr.Microphone() as source:
-    #     chat = Chat(source=source)
+    elif sys.argv[1] == "1":
+        # Using voice recognition
+        with sr.Microphone() as source:
+            chat = VoiceChat(source)
 
-    #     while(1):
-    #         prompt = chat.get_prompt()
-    #         response = chat.get_response(prompt)
-    #         chat.speak(response)
+            while(1):
+                prompt = chat.get_prompt()
+                response = chat.get_response(prompt)
+                chat.speak(response)
 
-
-
-    # Uncomment when microphone is available
-    # with sr.Microphone() as source:   
-    #     # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
-    #     # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
-    #     r.adjust_for_ambient_noise(source, duration=0.5)
-
-    #     # Represents the minimum length of silence (in seconds) that will register as the end of a phrase. 
-    #     # Smaller values result in the recognition completing more quickly, but might result in slower speakers being cut off.
-    #     r.pause_threshold = 0.5
-
-    #     # Loop indefinitely for user to speak
-    #     while(1):
-    #         try:
-    #             # Listens for the user's input
-    #             audio = r.listen(source)
-                
-    #             # Use Google Speech Recognition to recognize audio
-    #             prompt = r.recognize_google(audio)
-    #             prompt = prompt.lower()
-    #             print(f"Speech input: {prompt}")
-
-    #             # Get speech response
-    #             response = get_response(prompt)
-    #             speak(response)
-
-    #             print("Response complete")
-
-    #         except sr.RequestError as e:
-    #             print("Could not request results: {}".format(e))
-            
-    #         except sr.UnknownValueError:
-    #             print("No speech detected.")
+    else:
+        print("Invalid command line argument.")
+        return
 
 
 if __name__ == "__main__":
