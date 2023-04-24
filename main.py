@@ -129,6 +129,8 @@ class VoiceChat(TextChat):
         self.recogniser = sr.Recognizer()
 
         # Below are the configurations for the voice recogniser
+
+        self.recogniser.energy_threshold = 4000
         
         # Adjusts the energy threshold dynamically using audio from source to account for ambient noise
         # Duration parameter is the maximum number of seconds that it will dynamically adjust the threshold for before returning.       
