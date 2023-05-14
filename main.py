@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 import speech_recognition as sr
+import atexit
 
 
 # Set api_key for ChatGPT
@@ -115,6 +116,10 @@ class TextChat(object):
         self.ENGINE.say(text)
         self.ENGINE.runAndWait()
 
+    
+    # def save_conversation(self, path):
+
+
 
 class VoiceChat(TextChat):
     def __init__(self, source, max_token=100) -> None:
@@ -164,35 +169,39 @@ class VoiceChat(TextChat):
             print("No speech detected.")
             return 
 
+def run_chat(chat):
+    """
+    Function to be called continuously to run the chatbot
+    """
+    prompt = chat.get_prompt()
+    response = chat.get_response(prompt)
+    chat.speak(response)
+
 
 def main():
-    if len(sys.argv) != 2:
-        print("Expected 1 command line argument. Run 'python3 main.py 0' for TextChat, 'python3 main.py 1' for VoiceChat.")
+    if len(sys.argv) < 2:
+        print("Expected at least 1 command line argument. Run 'python3 main.py 0' for TextChat, 'python3 main.py 1' for VoiceChat.")
         return
         
-        
-    if sys.argv[1] == "0":
-        # Using manual command line input
-        chat = TextChat()
-
-        while(1):
-            prompt = chat.get_prompt()
-            response = chat.get_response(prompt)
-            chat.speak(response)
-
-    elif sys.argv[1] == "1":
-        # Using voice recognition
-        with sr.Microphone() as source:
-            chat = VoiceChat(source)
+    else:   
+        if sys.argv[1] == "0":
+            # Using manual command line input
+            chat = TextChat()
 
             while(1):
-                prompt = chat.get_prompt()
-                response = chat.get_response(prompt)
-                chat.speak(response)
+                run_chat(chat)
 
-    else:
-        print("Invalid command line argument.")
-        return
+        elif sys.argv[1] == "1":
+            # Using voice recognition
+            with sr.Microphone() as source:
+                chat = VoiceChat(source)
+
+                while(1):
+                    run_chat(chat)
+
+        else:
+            print("Invalid command line argument.")
+            return
 
 
 if __name__ == "__main__":
