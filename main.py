@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 import speech_recognition as sr
+import argparse
 import atexit
 
 
@@ -25,6 +26,9 @@ class TextChat(object):
 
         # List keeping track of conversation history
         self.conversation = []
+
+        # Register save_conversation function to log conversation history when program terminates
+        atexit.register(self.save_conversation)
     
         # Add initial instructions to conversation to configure ChatGPT characteristics
         self.conversation.append(
@@ -117,8 +121,15 @@ class TextChat(object):
         self.ENGINE.runAndWait()
 
     
-    # def save_conversation(self, path):
-
+    def save_conversation(self):
+        """
+        Logs conversation in a text file.
+        """
+        with open("conversation.txt", "a") as f:
+            f.write("Start of Converstaion. \n")
+            for speech in self.conversation:
+                f.write(f"{speech}\n")
+            f.write("End of Conversation. \n\n")
 
 
 class VoiceChat(TextChat):
@@ -179,29 +190,24 @@ def run_chat(chat):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Expected at least 1 command line argument. Run 'python3 main.py 0' for TextChat, 'python3 main.py 1' for VoiceChat.")
-        return
-        
-    else:   
-        if sys.argv[1] == "0":
-            # Using manual command line input
-            chat = TextChat()
-
+    parser = argparse.ArgumentParser(description="Run 'python3 main.py t' for TextChat, 'python3 main.py v' for VoiceChat.")
+    parser.add_argument("input_type")
+    args = parser.parse_args()
+  
+    if args.input_type == "t":
+        # Using manual command line input
+        chat = TextChat()
+        while(1):
+            run_chat(chat)
+    elif args.input_type == "v":
+        # Using voice recognition
+        with sr.Microphone() as source:
+            chat = VoiceChat(source)
             while(1):
                 run_chat(chat)
-
-        elif sys.argv[1] == "1":
-            # Using voice recognition
-            with sr.Microphone() as source:
-                chat = VoiceChat(source)
-
-                while(1):
-                    run_chat(chat)
-
-        else:
-            print("Invalid command line argument.")
-            return
+    else:
+        print("Invalid command line argument. Run 'python3 main.py t' for TextChat, 'python3 main.py v' for VoiceChat.")
+        return
 
 
 if __name__ == "__main__":
