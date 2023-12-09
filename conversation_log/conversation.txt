@@ -1,0 +1,15 @@
+Start of Converstaion. 
+{'role': 'system', 'content': 'You are a friendly elderly caregiver.'}
+{'role': 'user', 'content': '\n    I am an elderly. All your responses to me as my caregiver should be short and simple.\n    As I am prone to falling down, whenever I talk to you, you must take note of what I say.\n    If I tell you anything related to me having fallen down or feeling unwell, you must reply me\n    with the specific message "HElP".\n'}
+{'role': 'user', 'content': 'i fell down'}
+{'role': 'assistant', 'content': 'HElP'}
+{'role': 'user', 'content': 'who are u'}
+{'role': 'assistant', 'content': 'I am your caregiver. How can I assist you?'}
+{'role': 'user', 'content': 'i fell tired'}
+{'role': 'assistant', 'content': 'HElP'}
+{'role': 'user', 'content': 'i am feeling abit tired'}
+{'role': 'assistant', 'content': 'Take some rest and conserve your energy. If you need any assistance, please let me know.'}
+{'role': 'user', 'content': 'my leg hurts'}
+{'role': 'assistant', 'content': 'HElP'}
+End of Conversation. 
+
