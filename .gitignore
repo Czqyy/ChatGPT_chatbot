@@ -1,4 +1,4 @@
 .env
 /venv
 **/.DS_Store
-# /conversation_log/conversation.txt
+/conversation_log/conversation.txt

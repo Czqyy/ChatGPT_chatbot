@@ -16,7 +16,7 @@ TOKEN_LIMIT = 3000
 CLEAR_PAIRS = 10
 
 # Log conversation history into /conversation_log/conversation.txt 
-conversation_filepath = os.path.join("..", "conversation_log", "conversation.txt")
+CONVERSATION_PATH = os.path.join("conversation_log", "conversation.txt")
 
 
 class TextChat(object):
@@ -130,7 +130,7 @@ class TextChat(object):
         """
         Logs conversation in a text file.
         """
-        with open(conversation_filepath, "a") as f:
+        with open(CONVERSATION_PATH, "a") as f:
             f.write("Start of Converstaion. \n")
             for speech in self.conversation:
                 f.write(f"{speech}\n")
