@@ -1,5 +1,5 @@
-# ChatGPT Elderly Bot
-This bot connects to the ChatGPT API gpt-3.5-turbo model. The chat model role is to serve as a friendly elderly caretaker. 
+# ChatGPT Bot
+This bot utilises the ChatGPT API to create a chatbot.
 ## Instructions to run this program on a Raspberrypi
 1. Create a `.env` file containing the OpenAI API key
 2. Run `pip3 install -r requirements.txt` to install the required libraries
